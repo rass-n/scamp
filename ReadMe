@@ -1,1 +1,10 @@
-ReadMe file.
+Scamp-Folder consists of 3 folders
+
+scamp
+  -Python package for simple climate modeling. More info can be found in the ReadMe for the scamp package.
+  
+examples
+  -Simple scripts with basic examples on how to use scamp
+  
+ipython-notebook
+  -Interactive examples and an introduction to the scamp package. Include examples with rready results to
