@@ -2,10 +2,8 @@
 """
 Created on Tue Feb 23 10:22:00 2016
 
-@author: ko
+@author: Rasmus Nordfang
 """
-#midlertiddige klasser
-#import classes as cl
 
 #permenente
 import numpy as np
@@ -14,38 +12,55 @@ import salinity
 import ice_volume
 
 
-def singh(world):
+
+'''
+Main ODE Functions. Calculates the ordinary differential functions.
+Function pointer to which of the following funtions should be used is stored in world.ode_func
+
+
+Input: world
+Output: Dictionary with key=[placement, paramter-name]  value=dx/dt 
+'''
+
+def singh(world): #Default ODE's. 
 
     ode = {}    
-    ode[world.ocean, 'S'] = world.ocean.salt_func(world)         
-    ode[world.ocean, 'T'] = world.ocean.temp_func(world)     
-    ode[world.ice, 'V'] = world.ice.V_func(world)
+    ode[world.ocean, 'S'] = world.ocean.salt_func(world) #Pointer to salinity function        
+    ode[world.ocean, 'T'] = world.ocean.temp_func(world) #pointer to temperature function     
+    ode[world.ice, 'V'] = world.ice.V_func(world) #pointer to ice-volume function
     
     return ode
     
-def extra(world, ode):
+def ocean(world): #only ocean
+    ode = {}    
+    ode[world.ocean, 'S'] = world.ocean.salt_func(world) #Pointer to salinity function         
+    ode[world.ocean, 'T'] = world.ocean.temp_func(world) #pointer to temperature function        
     return ode
     
-    
-def singh_gl(world):
+ 
+ 
+ 
+'''
+extra ODE functions. Calculates extra ode functions
+Function pointer to which funtion should be used is stored in world.ode_func_extra
 
-    ode = {}
+input: world, dictionary from above functions
+output: Dictionary with key=[placement, paramter-name]  value=dx/dt
+'''   
     
-    ode[world.ocean, 'S'] = world.ocean.salt_func(world) 
-    
-    ode[world.ocean, 'T'], ode[world.ice, 'V'] = world.ocean.temp_func(world) 
+def extra(world, ode): #Should be empty. This function is used when no extra ODE's are added to the default ones.
     return ode
     
-    
-    
-def test(world):
-    print 'ode - test'
-    ode = {}
-    ode[world.ocean, 'test'] = world.ocean.test + 1
-    return ode 
+
+
+
     
 
 if __name__ == "__main__":
+    '''
+    Only for testing
+    '''
+    
     import classes as cl    
     import ode_solver as solver   
     
@@ -57,18 +72,5 @@ if __name__ == "__main__":
     world.print_all()    
     
     
-#    def forward_test(world,
-#                     ode_func = singh,
-#                     ode_func_extra = None,
-#                     **kw):
-#        for i in xrange(world.dim.steps):        
-#            ode = ode_func(world)                    
-#                    
-#            for place in ode:
-##                banan = getattr(place[0], place[1]) + ode[place] * world.dim.dt 
-#                new = getattr(place[0], place[1]) + ode[place]
-#                setattr(place[0], place[1], new)
-#            
-#        return world
-    
+
     

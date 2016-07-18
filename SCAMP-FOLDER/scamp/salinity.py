@@ -2,14 +2,21 @@
 """
 Created on Tue Mar  1 11:40:58 2016
 
-@author: ko
+@author: Rasmus Nordfang
 """
 
 import numpy as np
 
+'''
+Salinity interactions.
 
-    
-def W_tot(world):
+Input: class World
+Output: numpy array - Interaction value 
+
+Caution: Do not modify 'world' values in these functions.
+'''
+
+def W_tot(world): #total salinty rate for each layer
 
     W_tot = np.zeros(shape=(world.dim.n_x, world.dim.n_y, world.ocean.layers))
     
@@ -19,50 +26,63 @@ def W_tot(world):
     W_tot[:,:,3] = world.ocean.W_int[:,:,3]# + W_int_LW[:,:,3] + W_int_dia_tot[:,:,3] #AB
     return W_tot
         
-    
 
-def W_brine(world):
+def W_brine(world): #salinty change caused by ice-formation
     W_brine = np.zeros(shape=(world.dim.n_x, world.dim.n_y))
     putmask = world.ice.dV[:,:] > 0
     W_brine[:,:] = ~putmask * W_brine[:,:] + putmask *(world.ice.p_ice * world.ocean.S_start * world.ice.dV[:,:] / (1- world.ocean.S_start/1000.0))
     return W_brine
     
-def W_melt(world):
+def W_melt(world): #salinity caused by melting ice
     W_melt = np.zeros(shape=(world.dim.n_x, world.dim.n_y))
     putmask = world.ice.dV[:,:] <= 0
     W_melt[:,:] = ~putmask * W_melt[:,:] + putmask *(world.ice.p_ice * world.ocean.S_start * world.ice.dV[:,:] / (1- world.ocean.S_start/1000.0))
     return W_melt
     
     
-def W_int(world):
+def W_int(world): #verticaL interfacial salinity fluxes
     W_int = np.zeros(shape=(world.dim.n_x,world.dim.n_y, world.ocean.layers)) #[kg * m/s * g/kg]
     W_int[...,1:] = (2 * world.ocean.k_s_tot[...,1:] * (world.ocean.p[...,:world.ocean.layers-1] * world.ocean.S[...,:world.ocean.layers-1] - world.ocean.p[...,1:] * world.ocean.S[...,1:]) 
                     / (world.ocean.h[:world.ocean.layers-1] + world.ocean.h[1:])) #ML- PC, PC-DP, DP-AB
     return W_int
     
-def W_export(world):
+def W_export(world): #salinity export
     W_export = world.ice.p_ice * world.ocean.S_start * world.ice.I_export / (1- world.ocean.S_start/1000) / (60.0*60.0*24.0*365.0) #[kg*m/s g/kg] #pos
     return W_export
     
     
-def W_horiz(world):
+def W_horiz(world): #horizontal interfacial fluxes
+
+    #x-direction
     W_int_x = np.zeros(shape=(world.dim.n_x+1, world.dim.n_y, world.ocean.layers)) #[kg * m/s * g/kg]
-    W_int_x[1:world.dim.n_x,:,:] = world.ocean.k_s_horiz_tot[:,:,:] * (world.ocean.p[0:world.dim.n_x-1,:,:] * world.ocean.S[0:world.dim.n_x-1,:,:] - world.ocean.p[1:world.dim.n_x,:,:] * world.ocean.S[1:world.dim.n_x,:,:]) / (world.ocean.h[:])
+    W_int_x[1:world.dim.n_x,:,:] = world.ocean.k_s_horiz_tot[0,0,:] * (world.ocean.p[0:world.dim.n_x-1,:,:] * world.ocean.S[0:world.dim.n_x-1,:,:] - world.ocean.p[1:world.dim.n_x,:,:] * world.ocean.S[1:world.dim.n_x,:,:]) / (world.ocean.h[:])
     
+    #y-direction
     W_int_y = np.zeros(shape=(world.dim.n_x, world.dim.n_y+1, world.ocean.layers))
-    W_int_y[:,1:world.dim.n_y,:] = world.ocean.k_s.k_horiz_tot[:,:,:] * (world.ocean.p[:,0:world.dim.n_y-1,:] * world.ocean.S[:,0:world.dim.n_y-1,:] - world.ocean.p[:,1:world.dim.n_y,:] * world.ocean.S[:,1:world.dim.n_y,:]) / (world.ocean.h[:])
+    W_int_y[:,1:world.dim.n_y,:] = world.ocean.k_s_horiz_tot[0,0,:] * (world.ocean.p[:,0:world.dim.n_y-1,:] * world.ocean.S[:,0:world.dim.n_y-1,:] - world.ocean.p[:,1:world.dim.n_y,:] * world.ocean.S[:,1:world.dim.n_y,:]) / (world.ocean.h[:])
     
+    
+    #total x and y directions
     W_int_xy = W_int_x[0:world.dim.n_x,:,:] - W_int_x[1:world.dim.n_x+1,:,:] + W_int_y[:,0:world.dim.n_y,:] - W_int_y[:,1:world.dim.n_y+1,:]
     
+    
+    #diagonal. x=0 y=0 to x=1, y=1
     W_int_dia_xy = np.zeros(shape=(world.dim.n_x+1, world.dim.n_y+1, world.ocean.layers))
-    W_int_dia_xy[1:world.dim.n_x, 1:world.dim.n_y,:] =  world.ocean.k_s_horiz_tot[:] * (world.ocean.p[0:world.dim.n_x-1, 0:world.dim.n_y-1,:] * world.ocean.S[0:world.dim.n_x-1, 0:world.dim.n_y-1,:] - world.ocean.p[1:world.dim.n_x, 1:world.dim.n_y,:] * world.ocean.S[1:world.dim.n_x, 1:world.dim.n_y,:] ) / world.ocean.h[:]# * 2**(0.5)
+    W_int_dia_xy[1:world.dim.n_x, 1:world.dim.n_y,:] =  world.ocean.k_s_horiz_tot[0,0,:] * (world.ocean.p[0:world.dim.n_x-1, 0:world.dim.n_y-1,:] * world.ocean.S[0:world.dim.n_x-1, 0:world.dim.n_y-1,:] - world.ocean.p[1:world.dim.n_x, 1:world.dim.n_y,:] * world.ocean.S[1:world.dim.n_x, 1:world.dim.n_y,:] ) / world.ocean.h[:]# * 2**(0.5)
 
+    #diagonal X=0 y=1 to x=1 y=0
     W_int_dia_yx = np.zeros(shape=(world.dim.n_x+1, world.dim.n_y+1,world.ocean.layers))
-    W_int_dia_yx[1:world.dim.n_x, 1:world.dim.n_x,:] = world.ocean.k_s_horiz_tot[:,:,:] * (world.ocean.p[0:world.dim.n_x-1, 1:world.dim.n_y,:] * world.ocean.S[0:world.dim.n_x-1, 1:world.dim.n_y, :] - world.ocean.p[0:world.dim.n_x-1, 1:world.dim.n_y, :] * world.ocean.S[1:world.dim.n_x, 0:world.dim.n_y-1, :]) / world.ocean.h[:]# * 2 ** (0.5)
+    W_int_dia_yx[1:world.dim.n_x, 1:world.dim.n_x,:] = world.ocean.k_s_horiz_tot[0,0,:] * (world.ocean.p[0:world.dim.n_x-1, 1:world.dim.n_y,:] * world.ocean.S[0:world.dim.n_x-1, 1:world.dim.n_y, :] - world.ocean.p[1:world.dim.n_x, 0:world.dim.n_y-1, :] * world.ocean.S[1:world.dim.n_x, 0:world.dim.n_y-1, :]) / world.ocean.h[:]# * 2 ** (0.5)
 
-    W_int_dia_tot = -W_int_dia_xy[1:world.dim.n_x+1,1:world.dim.n_y+1,:] -W_int_dia_yx[1:world.dim.n_x+1,0:world.dim.n_y,:] + W_int_dia_xy[0:world.dim.n_x, 0:world.dim.n_y,:] + W_int_dia_yx[0:world.dim.n_x, 1:world.dim.n_y+1,:]
+    #diagonal total
+    W_int_dia_tot = -W_int_dia_xy[1:world.dim.n_x+1,1:world.dim.n_y+1,:] -W_int_dia_yx[1:world.dim.n_x+1,0:world.dim.n_y,:] + W_int_dia_xy[0:world.dim.n_x, 0:world.dim.n_y,:] + W_int_dia_yx[0:world.dim.n_x, 1:world.dim.n_y+1,:]   
+    
+    #total horizontal    
+    W_horiz = W_int_xy + W_int_dia_tot / (2.0**(0.5))
 
-    W_horiz = W_int_xy + W_int_dia_tot
+#    print 'S \n', world.ocean.S[:,:,0]
+#
+#    print 'W_horiz \n', W_horiz[:,:,0]
 
     return W_horiz
     
@@ -70,35 +90,52 @@ def W_horiz(world):
     
 def singh(world):    
     
+    #calculate salinity rate dS/dt
+    
     dS = (world.ocean.W_tot + world.ocean.W_horiz) / (world.ocean.p * world.ocean.h) #[m/s * g/kg]
 
-    if world.ocean.p[0,0,0] > world.ocean.p[0,0,1]:
+
+    #convection. If density of above layer is larger then mix the two layers completely.
+#    if world.ocean.p[0,0,0] > world.ocean.p[0,0,1]:
 #        print 'BANAN'
-        dS[0,0,0] = 0
-        dS[0,0,1] = 0
-        S_tot = (world.ocean.S[0,0,0] * world.ocean.m[0,0,0]  + world.ocean.S[0,0,1] * world.ocean.m[0,0,1]) / (world.ocean.m[0,0,0] + world.ocean.m[0,0,1])
-        world.ocean.S[:,:,0] = S_tot
-        world.ocean.S[:,:,1] = S_tot
-        
-        
-    if world.ocean.p[0,0,1] > world.ocean.p[0,0,2]:
+#        dS[0,0,0] = 0
+#        dS[0,0,1] = 0
+#        S_tot = (world.ocean.S[0,0,0] * world.ocean.m[0,0,0]  + world.ocean.S[0,0,1] * world.ocean.m[0,0,1]) / (world.ocean.m[0,0,0] + world.ocean.m[0,0,1])
+#        world.ocean.S[:,:,0] = S_tot
+#        world.ocean.S[:,:,1] = S_tot
+#        
+#        
+#    if world.ocean.p[0,0,1] > world.ocean.p[0,0,2]:
 #        print 'APPLE'
-        dS[0,0,1] = 0
-        dS[0,0,2] = 0
-        S_tot = (world.ocean.S[0,0,1] * world.ocean.m[0,0,1]  + world.ocean.S[0,0,2] * world.ocean.m[0,0,2]) / (world.ocean.m[0,0,1] + world.ocean.m[0,0,2])
-        world.ocean.S[:,:,1] = S_tot
-        world.ocean.S[:,:,2] = S_tot
+#        dS[0,0,1] = 0
+#        dS[0,0,2] = 0
+#        S_tot = (world.ocean.S[0,0,1] * world.ocean.m[0,0,1]  + world.ocean.S[0,0,2] * world.ocean.m[0,0,2]) / (world.ocean.m[0,0,1] + world.ocean.m[0,0,2])
+#        world.ocean.S[:,:,1] = S_tot
+#        world.ocean.S[:,:,2] = S_tot
         
-        
-    if world.ocean.p[0,0,2] > world.ocean.p[0,0,3]:
-#        print 'ORANGE' 
-        dS[0,0,2] = 0
-        dS[0,0,3] = 0
-        S_tot = (world.ocean.S[0,0,2] * world.ocean.m[0,0,2]  + world.ocean.S[0,0,3] * world.ocean.m[0,0,3]) / (world.ocean.m[0,0,2] + world.ocean.m[0,0,3])
-        world.ocean.S[:,:,2] = S_tot
-        world.ocean.S[:,:,3] = S_tot
+    mask = world.ocean.p[:,:,1] > world.ocean.p[:,:,2]    
+    dS[:,:,2] = ~mask*dS[:,:,2] + mask * 0
+    dS[:,:,3] = ~mask*dS[:,:,3] + mask * 0    
+    S_tot = (world.ocean.S[:,:,1] * world.ocean.m[:,:,1]  + world.ocean.S[:,:,2] * world.ocean.m[:,:,2]) / (world.ocean.m[:,:,1] + world.ocean.m[:,:,2])    
     
+    world.ocean.S[:,:,1] = ~mask * world.ocean.S[:,:,1] + mask * S_tot
+    world.ocean.S[:,:,2] = ~mask * world.ocean.S[:,:,2] + mask * S_tot   
+        
+#    if world.ocean.p[0,0,2] > world.ocean.p[0,0,3]:
+#        print 'ORANGE' 
+#        dS[0,0,2] = 0
+#        dS[0,0,3] = 0
+#        S_tot = (world.ocean.S[0,0,2] * world.ocean.m[0,0,2]  + world.ocean.S[0,0,3] * world.ocean.m[0,0,3]) / (world.ocean.m[0,0,2] + world.ocean.m[0,0,3])
+#        world.ocean.S[:,:,2] = S_tot
+#        world.ocean.S[:,:,3] = S_tot
+#    
     return dS
+    
+    
+    
+    
+    
+    
 #def salt(S, 
 #         p, 
 #         h, 

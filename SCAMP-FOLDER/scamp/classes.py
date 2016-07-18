@@ -5,35 +5,21 @@ Created on Wed Jan 27 22:26:40 2016
 @author: Rasmus Nordfang
 """
 
-#SCAMP!!!!
-#from ode import singh
-#from ode_solver import forward_euler
+
 import numpy as np
-#from ode import singh
 import ode
 import temperature
 import salinity
 import ice_volume
 import update
 import warnings
-
-import density
-import heat
-import test
-from ani import ani
-
-
+from animation import ani
 import matplotlib.pyplot as plt
 
-#import ode_solver
-#import bohrium as np
-
-#from ode import singh
 
 
 class dim(object):
-    '''Dimensions
-    
+    '''Dimensions of the gridsystem and timescale. 
     
     Attributes
     ----------        
@@ -61,13 +47,11 @@ class dim(object):
     steps : int
         Number of timesteps
         
-        season_factor : float
+    season_factor : float
         Fraction of a year it is winter. Float between 0 - 1 
     
     season : bool
         0 = winter, 1 = Summer
-    
-        
     
     '''
     def __init__(self,
@@ -83,14 +67,15 @@ class dim(object):
         self.n_x = n_x
         self.n_y = n_y
         self.years = years
-        self.dt_y = dt
-        self.dt_s = dt * 360 * 24 * 60 * 60
+        self.year_s = 365.0 * 24.0 * 60.0 * 60.0
+        self.dt_y = dt 
+        self.dt_s = dt * self.year_s
         self.steps = int(years / float(dt))
         self.season_factor = season_factor     
         self.season = 0 #0 winter, 1 summer
         self.save_fraction = save_fraction
-        
-        
+        self.save_steps = int(self.steps / float(self.save_fraction))
+               
             
 class world(object):
     '''
@@ -118,9 +103,6 @@ class world(object):
         
     Class functions
     ---------------
-    SOMETHING SOMETHING
-    
-    
     
     '''
     def __init__(self,
@@ -150,29 +132,6 @@ class world(object):
             self.atmos = atmos(dim)
         else:
             self.atmos = atmos_start
-
-#
-#        if not ocean_start and not ice_start and not atmos_start:#if nothing is specified start with ocean and ice
-#            self.dim = dim
-#            self.ocean = ocean(dim)
-#            self.ice = ice(dim)
-#            self.atmos = atmos(dim) #No atmosphere
-#            
-#        elif ocean_start and not ice_start and not atmos_start:
-#            print 'obs muligvis ikke helt færdigt, tjek fx for dimensioner'
-#            self.dim = dim
-#            self.ocean = ocean_start
-#            self.ice = ice(dim)
-#            self.atmos = atmos_start
-#            
-#        elif ocean_start and atmos_start and ice_start:
-#            self.dim = dim
-#            self.ocean = ocean_start
-#            self.ice = ice_start
-#            self.atmos = atmos_start
-#       
-#        else:
-#            print 'VIRKER IKKE ENDNU, class: world, func:__inti__'
             
         #FUNCTIONS
         self.update_func = update_func #this is not ideal to change but it is possible if it is desired not to update part of the model.
@@ -191,6 +150,17 @@ class world(object):
         print 'S \n', self.ocean.S, '\n'
         print 'V \n', self.ice.V, '\n'
         return
+        
+    def save(self, name):
+        np.savez(name, T = self.ocean.T_save, S = self.ocean.S_save, V = self.ice.V_save, p = self.ocean.p_save)
+        
+    def load(self, name):
+        npzfile = np.load(name+'.npz')
+        self.ocean.T_save = npzfile['T']
+        self.ocean.S_save = npzfile['S']
+        self.ocean.V_save = npzfile['V']
+        self.ocean.p_save = npzfile['p']
+        
     
     def print_layer(self, layer):
         if not type(layer) == int:
@@ -215,25 +185,25 @@ class world(object):
     def animation(self,
                   para,
                   layer=0,
+                  vmin = 30,
+                  vmax = 35,                
                   **kw):
-                      
-        ani(para[:,:,:,:], self.dim.steps)
+        [steps,_,_] = para.shape               
+        ani(para[:,:,:], steps-1, vmin = vmin, vmax=vmax)
         return
             
-                     
-    
     def print_functions(self):
         '''print an overview of world'''
         print 'This is not done yet, but is going to be awesome'
         
     def plot_all(self):
         
-        time = np.arange(len(self.ocean.T_save[:,0,0,0])) * self.dim.dt_y
+        time = np.arange(len(self.ocean.T_save[:,0,0,0])) * self.dim.dt_y * self.dim.save_fraction
         
         plt.plot(time,self.ocean.S_save[:,0,0,0], 'r', label='ML'), plt.plot(time,self.ocean.S_save[:,0,0,1],'b', label='PC') , plt.plot(time, self.ocean.S_save[:,0,0,2],'c', label='DP')
         plt.plot(time,self.ocean.S_save[:,0,0,3],'g', label='AB')
-        plt.xlabel('time (syears)')
-        plt.ylabel('Salinity')
+        plt.xlabel('time (years)')
+        plt.ylabel('Salinity [g/kg]' )
         plt.title('Salinity Layers')
         plt.grid(True)
         plt.legend(loc='upper left', shadow=True, fontsize='x-large')
@@ -242,31 +212,39 @@ class world(object):
         plt.plot(time,self.ocean.T_save[:,0,0,0], 'r', label='ML'), plt.plot(time,self.ocean.T_save[:,0,0,1],'b', label='PC') , plt.plot(time,self.ocean.T_save[:,0,0,2],'c', label='DP')
         plt.plot(time,self.ocean.T_save[:,0,0,3],'g', label='AB')
         plt.xlabel('time (years)')
-        plt.ylabel('Temperature')
+        plt.ylabel('Temperature [C]')
         plt.title('Temperature')
         plt.grid(True)
         plt.legend(loc='upper left', shadow=True, fontsize='x-large')
         plt.show()        
             
-        plt.plot(time,self.ocean.p_save[:,0,0,0], 'r', label='ML'), plt.plot(time,self.ocean.p_save[:,0,0,1],'b', label='PC') , plt.plot(time,self.ocean.p_save[:,0,0,2],'c', label='DP')
-        plt.plot(time,self.ocean.p_save[:,0,0,3],'g', label='AB')
-        plt.xlabel('time (years)')
-        plt.ylabel('density')
-        plt.title('density')
-        plt.grid(True)
-        plt.legend(loc='upper left', shadow=True, fontsize='x-large')
-        plt.show()                   
+#        plt.plot(time,self.ocean.p_save[:,0,0,0], 'r', label='ML'), plt.plot(time,self.ocean.p_save[:,0,0,1],'b', label='PC') , plt.plot(time,self.ocean.p_save[:,0,0,2],'c', label='DP')
+#        plt.plot(time,self.ocean.p_save[:,0,0,3],'g', label='AB')
+#        plt.xlabel('time (years)')
+#        plt.ylabel('density []')
+#        plt.title('density')
+#        plt.grid(True)
+#        plt.legend(loc='upper left', shadow=True, fontsize='x-large')
+#        plt.show()                   
                         
             
-        plt.plot(time,self.ice.V_save[:,0,0], 'r', label='ML'), plt.plot(time,self.ice.V_save[:,0,0],'b', label='PC') , plt.plot(time,self.ice.V_save[:,0,0],'c', label='DP')
-        plt.plot(time,self.ice.V_save[:,0,0],'g', label='AB')
+#        plt.plot(time,self.ice.V_save[:,0,0], 'r', label='ML'), plt.plot(time,self.ice.V_save[:,0,0],'b', label='PC') , plt.plot(time,self.ice.V_save[:,0,0],'c', label='DP')
+#        plt.plot(time,self.ice.V_save[:,0,0],'g', label='AB')
+#        plt.xlabel('time (years)')
+#        plt.ylabel('ice_vol [m^3]')
+#        plt.title('ice_volume')
+#        plt.grid(True)
+#        plt.legend(loc='upper left', shadow=True, fontsize='x-large')
+#        plt.show()
+#        
+        plt.plot(time,self.ice.h_ice_save[:,0,0], 'r', label='ML'), plt.plot(time,self.ice.h_ice_save[:,0,0],'b', label='PC') , plt.plot(time,self.ice.h_ice_save[:,0,0],'c', label='DP')
+        plt.plot(time,self.ice.h_ice_save[:,0,0],'g', label='AB')
         plt.xlabel('time (years)')
-        plt.ylabel('ice_vol')
-        plt.title('ice_volume')
+        plt.ylabel('ice height [m]')
+        plt.title('ice_height')
         plt.grid(True)
         plt.legend(loc='upper left', shadow=True, fontsize='x-large')
         plt.show()
-        
         
         return        
         
@@ -306,7 +284,7 @@ class world(object):
         return
                   
 class atmos(object):
-    '''TEST atmos
+    '''atmosphere
     
     Attributes
     ----------
@@ -340,9 +318,6 @@ class atmos(object):
     
     Q_lw_func : <type 'function'>
         Longwave function
-
-    
-    
     
     '''
     def __init__(self,
@@ -415,52 +390,30 @@ class ocean(object):
         salintiy flow horizontal
                           
     Q_tot_no_ice : float
-        1    
+        Total heat flux transport  with no ice  
     
     Q_tot_ice : floar
-        1    
+        Total heat flux transport with ice    
     
     T_ref : float
-        1    
+        A reference temperature set as constant.
         
     T_bot : float
-        1
-        
-    B_t : float
-        1
-        
-    n_w : float
-        1        
-        
-    n_s : float
-        1    
-    
-    k_c : float
-        1        
-        
-    C_0 : float
-        1    
-    
-    k_t : numpy array, shape=(2, layers)
-        1    
-    
-    L_f : float
-        1
-
-    k_s_tot : numpy array, shape=(dim.n_x, dim.n_y, layers)
-        1        
+        Temperature bottom of ice
+        k_s_tot : numpy array, shape=(dim.n_x, dim.n_y, layers)
+        Combined mixing with/wihout salinity temperature       
         
     k_t_tot : numpy array, shape=(dim.n_x, dim.n_y, layers)
-        1         
+        Combined mixing with/wihout ice temperature         
          
     k_s_horiz_tot : numpy array, shape=(dim.n_x, dim.n_y, layers)
-        1    
+        Salinity mixing paramter horizontal    
     
     k_t_horiz_tot : numpy array, shape=(dim.n_x, dim.n_y, layers)
-        1        
+        Temperature mixing parameter horizontal        
         
     W_brine : numpy array, shape=(dim.n_x, dim.n_y)
-        1    
+        Brine salinity flux   
     
     W_melt : numpy array, shape=(dim.n_x, dim.n_y)
         1    
@@ -486,6 +439,27 @@ class ocean(object):
     Q_horiz : numpy array, shape=(dim.n_x, dim.n_y, layers)
         1
         
+    B_t : float
+        1
+        
+    n_w : float
+        1        
+        
+    n_s : float
+        1    
+    
+    k_c : float
+        1        
+        
+    C_0 : float
+        1    
+    
+    k_t : numpy array, shape=(2, layers)
+        1    
+    
+    L_f : float
+        Heat of 
+        
     Functions
     ---------
     
@@ -498,7 +472,7 @@ class ocean(object):
                  layers = 4,        #ML    PC    DP    AB 
                  T_start = np.array([-1.0  , -1.0  ,  4.0, 1.0]),
                  S_start = np.array([32.0, 32.0, 32.0, 35.0]),
-                 h = np.array([50.0, 350.0, 800.0, 3000.0]) #technical depth but 'h' is used in Singh
+                 h = np.array([50.0, 350.0, 800.0, 3000.0]), #technical depth but 'h' is used in Singh
                  temp_func = temperature.singh,
                  salt_func = salinity.singh,
                  update_func = update.ocean_singh,
@@ -529,18 +503,19 @@ class ocean(object):
         self.T = np.ones(shape=(dim.n_x, dim.n_y, layers)) * T_start
         self.S = np.ones(shape=(dim.n_x, dim.n_y, layers)) * S_start
 
-        self.p_save = np.zeros(shape=(dim.steps+1, dim.n_x, dim.n_y, layers)); self.p_save[0,:,:,:] = self.p
-        self.T_save = np.zeros(shape=(dim.steps+1, dim.n_x, dim.n_y, layers)); self.T_save[0,:,:,:] = self.T
-        self.S_save = np.zeros(shape=(dim.steps+1, dim.n_x, dim.n_y, layers)); self.S_save[0,:,:,:] = self.S
+        self.p_save = np.zeros(shape=(dim.save_steps+1, dim.n_x, dim.n_y, layers)); self.p_save[0,:,:,:] = self.p
+        self.T_save = np.zeros(shape=(dim.save_steps+1, dim.n_x, dim.n_y, layers)); self.T_save[0,:,:,:] = self.T
+        self.S_save = np.zeros(shape=(dim.save_steps+1, dim.n_x, dim.n_y, layers)); self.S_save[0,:,:,:] = self.S
         self.S_start = S_start[0] #ML start temp. Used in ice
         
         #Constants
         self.k_s = np.array([[0.0, 10.0**(-4),   10.0**(-6), 10.0**(-8)],    #ICE    ice-ML, ML-PC, PC-DP, DP-AB
                              [0.0, 6.0*10**(-4), 10.0**(-6), 10.0**(-8)]])   #NO ICE ice-ML, ML-PC, PC-DP, DP-AB  
                              
-        self.k_s_horiz = np.array([[0.0, 10.0**(-4),   10.0**(-6), 10.0**(-8)],    #ICE    ice-ML, ML-PC, PC-DP, DP-AB
-                                   [0.0, 6.0*10**(-4), 10.0**(-6), 10.0**(-8)]])   #NO ICE ice-ML, ML-PC, PC-DP, DP-AB 
-  
+        self.k_s_horiz =1000 * np.array([[10.0**(-4), 10.0**(-4),   10.0**(-6), 10.0**(-8)],    #ICE    ice-ML, ML-PC, PC-DP, DP-AB
+                                   [6.0*10**(-4), 6.0*10**(-4), 10.0**(-6), 10.0**(-8)]])   #NO ICE ice-ML, ML-PC, PC-DP, DP-AB 
+                                   
+        
                         
         self.Q_tot_no_ice = 3.0
         self.Q_tot_ice = 0.5
@@ -553,9 +528,12 @@ class ocean(object):
         self.C_0 = 20.0
         self.k_t = np.array([[0, 10**(-4),   10**(-5), 10**(-7)],    #ICE     ice-ML, ML-PC, PC-DP, DP-AB
                              [0, 6*10**(-4), 10**(-5), 10**(-7)]])   #NO ICE  ice-ML, ML-PC, PC-DP, DP-AB 
+                            
+        self.k_t_horiz = np.array([[0, 10**(-4),   10**(-5), 10**(-7)],    #ICE     ice-ML, ML-PC, PC-DP, DP-AB
+                             [0, 6*10**(-4), 10**(-5), 10**(-7)]])   #NO ICE  ice-ML, ML-PC, PC-DP, DP-AB 
                              
-        self.k_t_horiz = np.array([[0, 10**(4),   10**(5), 10**(7)],    #ICE     ice-ML, ML-PC, PC-DP, DP-AB
-                                   [0, 6*10**(4), 10**(5), 10**(7)]])   #NO ICE  ice-ML, ML-PC, PC-DP, DP-AB 
+#        self.k_t_horiz =1 * np.array([[10**(4), 10**(4),   10**(5), 10**(7)],    #ICE     ice-ML, ML-PC, PC-DP, DP-AB
+#                                   [6*10**(4), 6*10**(4), 10**(5), 10**(7)]])   #NO ICE  ice-ML, ML-PC, PC-DP, DP-AB 
         
         self.L_f = 297000 #[J/kg] #heat of fusion for seawater. Taken as constant S=4 [0/00] T = -1.8 [C]
 
@@ -577,7 +555,7 @@ class ocean(object):
         self.Q_turb = np.zeros(shape=(dim.n_x, dim.n_y))
         self.Q_horiz = np.zeros(shape=(dim.n_x, dim.n_y, layers))
 
-        
+   
         #FUNCTIONS      
         #ODE
         
@@ -652,6 +630,7 @@ class ice(object):
             Ice grow rate for every step last year.
             
         dp_ice : numpy array, shape=(dim.n_x, dim.n_y)
+            polynya ice
         
         Q_sw : numpy array, shape=(dim.n_x, dim.n_y)
             Absorbed long short wave radiation        
@@ -661,6 +640,25 @@ class ice(object):
         
         V_save : numpy array shape=(dim.steps+1, dim.n_x, dim.n_y))     
             save array
+            
+    Function pointers
+    ----------------
+        update_func : <type 'function'>
+            Pointer to a function that updates all ice variables. 
+        
+        dp_ice_func : <type 'function'>
+            Polynya ice.
+            
+        T_top_func : <type 'function'>
+            Temperature on top of the ice.
+        
+        V_func : <type 'function'>
+            Ice volume evolution.
+        
+        dV_func : <type 'function'>
+            Ice grow rate.
+            
+        
     '''
     def __init__(self,
                  dim = dim(),
@@ -696,8 +694,8 @@ class ice(object):
         self.Q_lw = np.zeros(shape=(dim.n_x, dim.n_y))          
             
         #year dependent
-        self.V_save = np.zeros(shape=(dim.steps+1, dim.n_x, dim.n_y)); self.V_save[0,:,:] = self.V         
-       
+        self.V_save = np.zeros(shape=(dim.save_steps+1, dim.n_x, dim.n_y)); self.V_save[0,:,:] = self.V         
+        self.h_ice_save = np.zeros(shape=(dim.save_steps+1, dim.n_x, dim.n_y)); self.h_ice_save[0,:,:] = self.h_ice         
         #Functions
         self.update_func = update_func
         self.dp_ice_func = dp_ice_func
@@ -706,16 +704,16 @@ class ice(object):
         self.dV_func = dV_func
     
 if __name__ == "__main__":
-
-    print 'banan'
+    '''
+    Only for testing
+    '''
 #    ode.singh()
     
-    dim_test = dim()
-    world_test = world(dim = dim_test)
+#    dim_test = dim()
+#    world_test = world(dim = dim_test)
   
 #    world_test.plot_all()
-    world_test.animation(world_test.ocean.T_save)
-    
+#    world_test.animation(world_test.ocean.T_save)    
 #    print world_test.ice.export
     
         

@@ -46,7 +46,7 @@ def _dens0(S,T):
     # More temperature polynomials
     RB = b0 + (b1 + (b2 + (b3 + b4*T)*T)*T)*T
     RC = c0 + (c1 + c2*T)*T
-    
+#    print 'S \n',S
     return SMOW + RB*S + RC*(S**1.5) + d0*S*S 
        
 # -----------------------------------------------------------------

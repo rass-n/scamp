@@ -2,7 +2,7 @@
 """
 Created on Tue Feb 23 10:24:22 2016
 
-@author: ko
+@author: Rasmus Nordfang
 """
 #import classes
 import update
@@ -10,106 +10,52 @@ import temperature
 import salinity
 import copy
 from ode import singh
-#def forward_euler_gammel(world,
-#                         update = update.singh,
-#                         update_extra = [],#remember to use this one
-#                         ode = ode.singh,
-#                         ode_extra = [],
-#                         **kw):
-#    '''
-#    Forward euler
-#    
-#    Parameters
-#    ----------
-#    world : world class
-#        banans
-#    update : function, optional
-#        Directs to a function with parameters 
-#    update_extra : ,optional
-#        Directs to a function with parameters
-#        
-#    Returns
-#    -----------
-#    out : class world
-#
-#    Examples
-#    -----------
-#    >>> forward_euler(world(dim()), update = update.example )
-#    <scamp.classes.world object at 0x7f4631239a10>
-#    '''                
-#    print 'forward_euler'      
-#    world = update(world)
-#    for i in xrange(world.dim.steps):
-#        [dT, dS, dV] = ode(world)
-#        
-#        for name,  in world.ode
-#            world.ocean.T += dT 
-#            world.ocean.S += dS
-#            world.ice.V += dV
-#            
-#        world = update(world)
-#        
-#    return world
-#  
 
-#def forward_euler(world,
-#                 ode_func = ode.singh,
-#                 ode_func_extra = None,
-#                 **kw):
-#    print 'ode solver - forward_euler'                    
-#    for i in xrange(world.dim.steps):        
-#        ode = ode_func(world)                             
-#        for place in ode:
-##                banan = getattr(place[0], place[1]) + ode[place] * world.dim.dt 
-#            new = getattr(place[0], place[1]) + ode[place] #T_(i+1) = T + (dT/dt)*dt
-#            setattr(place[0], place[1], new)
-#            
-#    return world  
     
-def forward_euler(world):
-    for i in xrange(world.dim.steps):      
-        world = world.update_func(world, i) 
-#        world = world.update_extra_func(world, i)               
-#        print 'NUMBER i', i
-##        print 'S', world.ocean.S
-#        print 'h_ice', world.ice.h_ice
-#        print 'x_ice', world.ice.x_ice
-#        print 'p', world.ocean.p
-#        print 'c_w', world.ocean.c_w
-#        print 'm', world.ocean.m
-#        print 'dV_grow', world.ice.dV
-#        print 'I_export', world.ice.I_export
-#        print 'for dV', world.ice.dV
-#        world.print_all()
+'''
+Model solvers. The solvers are called with scamp.solver_name(world)
 
+Input: world
+Output: world 
+'''    
+    
+def forward_euler(world): #Basic forward euler
+    for i in xrange(world.dim.steps):      
         
-        ode = world.ode_func(world) 
-        ode = world.ode_func_extra(world, ode)                            
-#        for place in world.ocean.ode_func(world):
-        for place in ode:    
-            #eg place[0]='world.ocean'   place[1] = 'T'   ode[place] = 0.1
+        world = world.update_func(world, i) #Update all values to current step,        
+        ode = world.ode_func(world) #calculate dx/dt for state parameters defined in ode_func
+        ode = world.ode_func_extra(world, ode) #calculate extra state paramters defined in ode_func_extra                       
+
+        for place in ode:   #eg place[0]='world.ocean'   place[1] = 'T'   ode[place] = 0.1
             new = getattr(place[0], place[1]) + ode[place] * world.dim.dt_s #T_(i+1) = T + (dT/dt)*dt  
-#            print 'NEW - ', place[1], ' = ', new     
-#            print 'dt_s - ', world.dim.dt_s
-#            print 'sidste - ', ode[place] * world.dim.dt_s
-#            print 'attr - ', getattr(place[0], place[1])
-            setattr(place[0], place[1], new)
+            setattr(place[0], place[1], new) 
         
-#        world.ocean.T, world.ice.V = temperature.singh(world)
-#        world.ocean.S = salinity.singh(world)
-#        world.print_all()
-#        print 'T_ml', world.ocean.T[:,:,0]
-#        print 'T_PC', world.ocean.T[:,:,1]
-        world.ocean.p_save[i+1,:,:,:] = world.ocean.p[:,:,:]
-        world.ocean.T_save[i+1,:,:,:] = world.ocean.T[:,:,:]
-        world.ocean.S_save[i+1,:,:,:] = world.ocean.S[:,:,:]
-        world.ice.V_save[i+1,:,:] = world.ice.V[:,:]
+        if i%world.dim.save_fraction == 0:
+#            if i/world.dim.save_fraction%10 == 0:
+#                print 'i', i
+            
+            
+            try:                
+                world.ocean.p_save[i/world.dim.save_fraction+1,:,:,:] = world.ocean.p[:,:,:] 
+                world.ocean.T_save[i/world.dim.save_fraction+1,:,:,:] = world.ocean.T[:,:,:]
+                world.ocean.S_save[i/world.dim.save_fraction+1,:,:,:] = world.ocean.S[:,:,:]
+                world.ice.V_save[i/world.dim.save_fraction+1,:,:] = world.ice.V[:,:]
+                world.ice.h_ice_save[i/world.dim.save_fraction+1,:,:] = world.ice.h_ice[:,:]
+            except:
+                pass
+            
+        #Save all values. This could be outcommented if full plots are not desired.
+#        world.ocean.p_save[i+1,:,:,:] = world.ocean.p[:,:,:] 
+#        world.ocean.T_save[i+1,:,:,:] = world.ocean.T[:,:,:]
+#        world.ocean.S_save[i+1,:,:,:] = world.ocean.S[:,:,:]
+#        world.ice.V_save[i+1,:,:] = world.ice.V[:,:]
+#        world.ice.h_ice_save[i+1,:,:] = world.ice.h_ice[:,:]
                 
     return world  
     
  
 
-def runge_kutta_4(world):
+def runge_kutta_4(world): #Runge kutta 4
     a21 = 1/2.0
     a32 = 1/2.0
     a43 = 1.0
@@ -118,7 +64,7 @@ def runge_kutta_4(world):
     b3 = 1/3.0
     b4 = 1/6.0
     
-    world1 = copy.deepcopy(world)#This is only done once so not time consuming bad bad for memory
+    world1 = copy.deepcopy(world)#This is only done once so not time consuming but bad for memory
     world2 = copy.deepcopy(world)
     world3 = copy.deepcopy(world)
     world4 = copy.deepcopy(world)   
@@ -240,11 +186,6 @@ def runge_kutta_4(world):
 #    return dT*dt[0], dS*dt[0], dV*dt[0], dV_grow*dt[0]
 
 
-
-
-
-
-
    
 #def forward_euler_2(world):
 #    for i in xrange(world.dim.steps):        
@@ -272,6 +213,9 @@ def runge_kutta_4(world):
     
     
 if __name__ == '__main__':
+    '''
+    Only for testing
+    '''
     import update
     import classes as cl
     dim = cl.dim(years = 5)
