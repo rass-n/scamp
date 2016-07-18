@@ -1,11 +1,12 @@
 Scamp-Folder consists of 3 folders
 
 scamp
-  -Python package for simple climate modeling. More info can be found in the ReadMe for the scamp package.
+  -Python package for simple climate modeling. With a few lines of code it is possible to do customized oceanic modeling 
+   withpout opening the source code. The backbone of the package is defined in classes.py.
   
 examples
   -Python scripts with basic examples of how to use scamp. 
   
 ipython-notebook
   -Interactive examples executed in ipython notebook. This includes a basic introduction to the scamp package and
-  advanced examples with data-examples.
+   advanced examples with data-examples.
