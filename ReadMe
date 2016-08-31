@@ -7,4 +7,5 @@ examples
   -Python scripts with basic examples of how to use scamp. 
   
 ipython-notebook
-  -Interactive examples executed in ipython notebook. This includes a basic introduction to the scamp package and advanced examples with data-examples.
+  -Interactive examples executed in ipython notebook. This includes a basic introduction 
+   to the scamp package and advanced examples with data-examples.
